@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fact Detective : คดีข้อมูลลับ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #111827;
+            color: #f3f4f6;
+        }
+        .case-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            background-color: #1f2937;
+        }
+        .case-card:not(.disabled):hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.2), 0 4px 6px -2px rgba(59, 130, 246, 0.15);
+            border-color: #3b82f6;
+        }
+        .case-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .section-box {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .main-button {
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .main-button:hover:not(:disabled) {
+            transform: scale(1.03);
+        }
+        .main-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: scale(1);
+        }
+        .clue-button {
+            transition: all 0.2s;
+        }
+        .clue-button.investigated {
+            background-color: #166534;
+            color: #d1fae5;
+            border-color: #22c55e;
+            pointer-events: none;
+        }
+        .answer-option.correct {
+            background-color: #166534;
+            border-color: #22c55e;
+        }
+        .answer-option.incorrect {
+            background-color: #991b1b;
+            border-color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <!-- Case Selection Screen -->
+        <div id="case-selection-screen">
+            <header class="text-center mb-8">
+                <h1 class="text-4xl md:text-5xl font-bold text-blue-400">Fact Detective</h1>
+                <p class="text-xl text-gray-300 mt-2">🕵️‍♂️ คดีข้อมูลลับ 🕵️‍♀️</p>
+                <p class="mt-4 max-w-2xl mx-auto text-gray-400">
+                    กรอกข้อมูลนักสืบ จากนั้นเลือกแฟ้มคดีเพื่อเริ่มสืบสวน!
+                </p>
+            </header>
+            
+            <div class="section-box max-w-xl mx-auto mb-8">
+                 <div class="space-y-4 text-left">
+                    <div>
+                        <label for="playerName" class="block mb-1 font-semibold text-gray-300">ชื่อ-สกุล นักสืบ</label>
+                        <input type="text" id="playerName" class="w-full p-3 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:border-blue-500" placeholder="กรอกชื่อ-สกุลของคุณ">
+                    </div>
+                    <div>
+                        <label for="studentID" class="block mb-1 font-semibold text-gray-300">รหัสประจำตัว (5 หลัก)</label>
+                        <input type="text" id="studentID" maxlength="5" inputmode="numeric" class="w-full p-3 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:border-blue-500" placeholder="กรอกเลขประจำตัว 5 หลัก">
+                    </div>
+                </div>
+            </div>
+
+            <div id="case-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Case cards will be injected here -->
+            </div>
+        </div>
+
+        <!-- Case Investigation Screen -->
+        <div id="case-investigation-screen" class="hidden">
+            <header class="mb-6">
+                <button id="back-to-selection" class="mb-4 text-blue-400 hover:text-blue-300">&larr; กลับไปเลือกคดี</button>
+                <h2 id="case-title" class="text-3xl md:text-4xl font-bold text-blue-400"></h2>
+            </header>
+            
+            <div class="space-y-6">
+                <div class="section-box">
+                    <h3 class="text-2xl font-semibold mb-3 border-b-2 border-gray-600 pb-2">แฟ้มคดี</h3>
+                    <p id="case-situation" class="text-gray-300 mb-4"></p>
+                    <div class="bg-blue-900/50 text-gray-100 p-4 rounded-lg border border-blue-700">
+                        <p class="font-semibold text-lg">🔍 ภารกิจ:</p>
+                        <p id="case-mission" class="mt-1"></p>
+                    </div>
+                </div>
+
+                <div class="section-box">
+                    <h3 class="text-2xl font-semibold mb-3 border-b-2 border-gray-600 pb-2">ข้อมูลจากแบบสำรวจ</h3>
+                    <p id="case-survey-data" class="text-gray-300 italic"></p>
+                </div>
+
+                <div class="section-box">
+                    <h3 class="text-2xl font-semibold mb-3 border-b-2 border-gray-600 pb-2">สืบสวนพยานแวดล้อม</h3>
+                    <p class="text-gray-400 mb-4">คลิกเพื่อตรวจสอบพยานแวดล้อมแต่ละชิ้น รวบรวมข้อมูลให้ครบทุกชิ้นก่อนสรุปคดี</p>
+                    <div id="clues-container" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <!-- Clue buttons will be injected here -->
+                    </div>
+                </div>
+
+                <div class="text-center mt-8">
+                    <button id="start-summary-btn" class="main-button w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg" disabled>
+                        เริ่มสรุปคดี
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Summary & Quiz Screen -->
+        <div id="summary-quiz-screen" class="hidden">
+            <h2 class="text-3xl font-bold text-blue-400 mb-6 text-center">สรุปผลการสืบสวน</h2>
+            
+            <!-- Quiz Section -->
+            <div id="quiz-section" class="section-box">
+                <p class="text-gray-400 text-center mb-4">ตอบคำถามเพื่อทดสอบความเข้าใจจากหลักฐานที่รวบรวมได้</p>
+                <p id="question-counter" class="text-center text-gray-400 mb-6"></p>
+                <p id="question-text" class="text-xl mb-6 text-gray-200"></p>
+                <div id="answer-options" class="space-y-3"></div>
+                <div id="feedback-text" class="mt-4 text-center font-semibold"></div>
+                <div class="text-right mt-6">
+                    <button id="next-question-btn" class="main-button bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg hidden">ต่อไป &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Report Section (initially hidden) -->
+            <div id="report-section" class="hidden mt-8 space-y-6 section-box">
+                <h3 class="text-2xl font-semibold text-center text-green-400">ทำแบบทดสอบเรียบร้อย!</h3>
+                <p class="text-center text-gray-300">ขั้นตอนสุดท้าย: เขียนรายงานสรุปคดีเพื่อปิดคดี</p>
+                <div>
+                    <label for="fact-summary" class="block text-xl font-medium mb-2">1. สรุปข้อเท็จจริงที่ค้นพบ</label>
+                    <textarea id="fact-summary" rows="5" class="w-full p-3 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:border-blue-500" placeholder="จากข้อมูลและพยานแวดล้อม สรุปได้ว่า..."></textarea>
+                </div>
+                <div>
+                    <label for="solution-proposal" class="block text-xl font-medium mb-2">2. เสนอแนวทางแก้ปัญหา</label>
+                    <textarea id="solution-proposal" rows="5" class="w-full p-3 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:ring-blue-500 focus:border-blue-500" placeholder="เพื่อแก้ปัญหานี้ ควรจะ..."></textarea>
+                </div>
+                <div class="text-center pt-4">
+                    <button id="close-case-btn" class="main-button w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg" disabled>
+                        ส่งรายงานและปิดคดี
+                   </button>
+                </div>
+           </div>
+        </div>
+
+        <!-- End Screen -->
+        <div id="end-screen" class="hidden text-center py-12">
+             <div class="section-box">
+                 <h2 class="text-4xl font-bold text-green-400 mb-2">ภารกิจสำเร็จ!</h2>
+                 <p class="text-2xl text-gray-200 mb-4">คะแนนการสืบสวนของคุณคือ</p>
+                 <p id="final-score" class="text-6xl font-bold text-yellow-400 mb-6"></p>
+                 <p id="save-status-text" class="text-slate-400 text-sm mb-6 h-5"></p>
+                  <div class="text-left bg-gray-900 p-6 rounded-lg mb-8 space-y-4 border border-gray-700">
+                       <div>
+                           <h3 class="font-semibold text-blue-400">สรุปข้อเท็จจริง:</h3>
+                           <p id="final-summary" class="text-gray-300 whitespace-pre-wrap"></p>
+                       </div>
+                       <div>
+                           <h3 class="font-semibold text-blue-400">แนวทางแก้ปัญหาที่เสนอ:</h3>
+                           <p id="final-solution" class="text-gray-300 whitespace-pre-wrap"></p>
+                       </div>
+                  </div>
+                 <button id="play-again-btn" class="main-button w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-lg">
+                     สืบคดีต่อไป
+                 </button>
+             </div>
+        </div>
+    </div>
+
+    <script>
+        const cases = [
+            { id: 'canteen', title: '🍱 คดีโรงอาหารลึกลับ', situation: 'มีเสียงบ่นจากนักเรียนว่าอาหาร “แพง, ร้อน, และไม่อร่อย” แต่ข้อมูลจากแบบสำรวจมีเพียง 12 คนเท่านั้น', mission: 'ตรวจสอบข้อเท็จจริงให้ได้ว่า “ปัญหาหลักของโรงอาหารคืออะไร?”', surveyData: 'ผลสำรวจ (12 คน): "อาหารแพง" (5 คน), "อากาศร้อน" (4 คน), "ไม่อร่อย" (3 คน)', clues: [ { name: "ป้ายราคาอาหาร", finding: "พบว่าราคาอาหารเฉลี่ยสูงกว่าปีที่แล้ว 5 บาท" }, { name: "พัดลม", finding: "พัดลมส่วนใหญ่ถูกปิด หรืออยู่ในโซนที่นักเรียนไม่ได้นั่ง" }, { name: "ถังขยะ", finding: "ขยะล้นออกมาจากถัง และมีกลิ่นเหม็นรบกวน" }, { name: "จำนวนโต๊ะ", finding: "จำนวนโต๊ะเพียงพอ แต่ส่วนใหญ่ว่างเพราะนักเรียนไปนั่งรวมกันในโซนที่มีพัดลม" }, { name: "ครูเวร", finding: "ครูเวรยืนยันว่านักเรียนต่อคิวน้อยลงจริง" } ], quiz: [ { q: 'ข้อร้องเรียนใดมีผู้ตอบแบบสำรวจมากที่สุด?', o: ['อากาศร้อน', 'อาหารแพง', 'ไม่อร่อย'], a: 'อาหารแพง' }, { q: 'ราคาอาหารเปลี่ยนแปลงไปอย่างไรเมื่อเทียบกับปีที่แล้ว?', o: ['เท่าเดิม', 'แพงขึ้น 5 บาท', 'ถูกลง 2 บาท'], a: 'แพงขึ้น 5 บาท' }, { q: 'ปัญหาหลักของพัดลมคืออะไร?', o: ['มีจำนวนน้อยเกินไป', 'เสียเกือบทั้งหมด', 'ไม่ได้เปิดใช้งานในจุดที่ควร'], a: 'ไม่ได้เปิดใช้งานในจุดที่ควร' }, { q: 'หลักฐานใดที่สนับสนุนเรื่องความไม่สะอาด?', o: ['โต๊ะมีเศษอาหาร', 'ขยะล้นถัง', 'พื้นเปียก'], a: 'ขยะล้นถัง' }, { q: 'ทำไมนักเรียนจึงไปนั่งกระจุกกันในบางโซน?', o: ['เพราะใกล้ร้านน้ำ', 'เพราะเป็นโซนเดียวที่มีพัดลม', 'เพราะโต๊ะโซนอื่นไม่สะอาด'], a: 'เพราะเป็นโซนเดียวที่มีพัดลม' }, { q: 'จากหลักฐานทั้งหมด ปัญหาที่แท้จริงคืออะไร?', o: ['คุณภาพอาหารแย่', 'ราคาไม่สมดุลกับประสบการณ์ที่ได้รับ', 'จำนวนโต๊ะไม่พอ'], a: 'ราคาไม่สมดุลกับประสบการณ์ที่ได้รับ' }, { q: 'หากต้องการแก้ปัญหาเรื่องความร้อน ควรทำอย่างไรเป็นอันดับแรก?', o: ['ติดแอร์', 'เปิดพัดลมให้ทั่วถึง', 'ลดจำนวนคน'], a: 'เปิดพัดลมให้ทั่วถึง' } ] },
+            { id: 'restroom', title: '🚻 คดีห้องน้ำปริศนา', situation: 'นักเรียนหลายคนบ่นว่าห้องน้ำสกปรกและไม่เพียงพอ แต่แม่บ้านยืนยันว่า “ทำความสะอาดทุกวัน”', mission: 'ตรวจสอบว่า “ปัญหาที่แท้จริงอยู่ที่ระบบ, พฤติกรรม, หรือช่วงเวลาใช้งาน?”', surveyData: 'ผลสำรวจ: "สกปรก" (60%), "ไม่พอใช้" (30%), "ไม่มีสบู่" (10%)', clues: [ { name: "ตารางทำความสะอาด", finding: "ทำความสะอาดเฉพาะช่วงเช้าก่อนเข้าเรียน และตอนเย็นหลังเลิกเรียนเท่านั้น" }, { name: "จำนวนห้องน้ำ", finding: "จำนวนรวมเพียงพอ แต่สัดส่วนห้องน้ำหญิงน้อยกว่าจำนวนนักเรียนหญิงมาก" }, { name: "สภาพพื้นที่", finding: "พื้นเปียกและมีกลิ่นอับในช่วงบ่าย" }, { name: "สบู่เหลว", finding: "ขวดสบู่ส่วนใหญ่ว่างเปล่า ไม่มีการเติมระหว่างวัน" }, { name: "ป้ายเตือน", finding: "มีป้ายเตือนให้รักษาความสะอาด แต่ไม่มีข้อความเชิงบวก" } ], quiz: [ { q: 'การทำความสะอาดเกิดขึ้นในช่วงเวลาใดบ้าง?', o: ['ทุกชั่วโมง', 'เฉพาะช่วงเช้าและเย็น', 'เฉพาะพักเที่ยง'], a: 'เฉพาะช่วงเช้าและเย็น' }, { q: 'ปัญหาเรื่องจำนวนห้องน้ำที่ซ่อนอยู่คืออะไร?', o: ['ห้องน้ำชายใหญ่ไป', 'สัดส่วนห้องน้ำหญิงไม่พอดี', 'จำนวนน้อยเกินไป'], a: 'สัดส่วนห้องน้ำหญิงไม่พอดี' }, { q: 'ทำไมห้องน้ำจึงสกปรกมากในช่วงบ่าย?', o: ['นักเรียนใช้ผิดวิธี', 'ไม่มีการทำความสะอาดระหว่างวัน', 'ท่อน้ำแตก'], a: 'ไม่มีการทำความสะอาดระหว่างวัน' }, { q: 'หลักฐานใดชี้ว่าระบบการจัดการมีปัญหา?', o: ['พื้นเปียก', 'ขวดสบู่ว่างเปล่า', 'กลิ่นอับ'], a: 'ขวดสบู่ว่างเปล่า' }, { q: 'คำพูดของแม่บ้านที่ว่า "ทำความสะอาดทุกวัน" อาจทำให้เข้าใจผิดได้อย่างไร?', o: ['แม่บ้านอาจโกหก', 'ช่วงเวลาที่ทำอาจไม่เหมาะสม', 'แม่บ้านทำไม่สะอาด'], a: 'ช่วงเวลาที่ทำอาจไม่เหมาะสม' }, { q: 'ปัญหาหลักของคดีนี้มาจากอะไร?', o: ['พฤติกรรมนักเรียน', 'ระบบการจัดการไม่ดี', 'โครงสร้างเก่า'], a: 'ระบบการจัดการไม่ดี' }, { q: 'หากต้องการแก้ปัญหาเร่งด่วนที่สุด ควรทำอะไร?', o: ['สร้างห้องน้ำใหม่', 'เพิ่มรอบทำความสะอาดตอนพักเที่ยง', 'อบรมนักเรียน'], a: 'เพิ่มรอบทำความสะอาดตอนพักเที่ยง' } ] },
+            { id: 'sports_field', title: '⚽ คดีสนามกีฬาหายไป', situation: 'หลังเลิกเรียน สนามกีฬามักจะว่างเปล่า ไม่มีใครมาเล่น ทั้งที่มีอุปกรณ์ครบครัน บางคนบอกว่า “แดดร้อน” บางคนก็บอก “ไม่มีเวลา”', mission: 'สืบให้ได้ว่าทำไมสนามถึงไม่ถูกใช้งาน', surveyData: 'ผลสำรวจ: "แดดร้อน" (55%), "ไม่มีเวลา" (25%), "ไม่มีเพื่อนเล่น" (20%)', clues: [ { name: 'ตารางเรียนพละ', finding: 'นักเรียนส่วนใหญ่เรียนพละตอนเช้า ซึ่งแดดร้อนไม่ต่างจากตอนเย็น' }, { name: 'อุปกรณ์กีฬา', finding: 'อุปกรณ์มีครบ แต่ห้องเก็บอยู่ไกลและขั้นตอนการยืมยุ่งยาก' }, { name: 'แสงสว่าง', finding: 'ไม่มีไฟส่องสว่างสำหรับใช้งานตอนเย็นหลังแดดหมด' }, { name: 'ครูเวรพละ', finding: 'ไม่มีครูพละอยู่ดูแลหรืออำนวยความสะดวกหลังเลิกเรียน' }, { name: 'ตารางกิจกรรมชมรม', finding: 'ชมรมส่วนใหญ่เป็นกิจกรรมในอาคาร ไม่ได้ใช้สนามกีฬา' } ], quiz: [ { q: 'ปัญหาหลักที่นักเรียนแจ้งในแบบสำรวจคืออะไร?', o: ['การบ้านเยอะ', 'แดดร้อน', 'ไม่มีเพื่อน'], a: 'แดดร้อน' }, { q: 'ปัญหาที่แท้จริงของ "อุปกรณ์กีฬา" คืออะไร?', o: ['อุปกรณ์เก่า', 'ขั้นตอนการยืมยุ่งยากและอยู่ไกล', 'มีจำนวนน้อย'], a: 'ขั้นตอนการยืมยุ่งยากและอยู่ไกล' }, { q: 'สนามกีฬามีข้อจำกัดเรื่อง "แสงสว่าง" อย่างไร?', o: ['ไฟสว่างไป', 'ไม่มีไฟสำหรับใช้งานตอนเย็น', 'ไฟเสียบ่อย'], a: 'ไม่มีไฟสำหรับใช้งานตอนเย็น' }, { q: 'ใครคือบุคคลที่ "ขาดหายไป" จากสนามกีฬาหลังเลิกเรียน?', o: ['ภารโรง', 'ผู้อำนวยการ', 'ครูเวรพละ'], a: 'ครูเวรพละ' }, { q: 'ข้อเท็จจริงใดที่ขัดแย้งกับข้ออ้างเรื่อง "แดดร้อน"?', o: ['นักเรียนเรียนพละตอนเช้าได้', 'ตอนเย็นแดดไม่ร้อน', 'นักเรียนชอบแดด'], a: 'นักเรียนเรียนพละตอนเช้าได้' }, { q: 'อุปสรรคสำคัญที่ทำให้นักเรียนไม่ใช้สนามกีฬาคืออะไร?', o: ['ความไม่สะดวกหลายอย่างรวมกัน', 'นักเรียนขี้เกียจ', 'โรงเรียนไม่มีอุปกรณ์'], a: 'ความไม่สะดวกหลายอย่างรวมกัน' }, { q: 'หากต้องการให้นักเรียนมาใช้สนามตอนเย็น ควรทำอะไรเป็นอันดับแรก?', o: ['ซื้ออุปกรณ์ใหม่', 'จัดครูเวร', 'ติดตั้งไฟส่องสว่าง'], a: 'ติดตั้งไฟส่องสว่าง' } ] },
+            { id: 'library', title: '📚 คดีห้องสมุดร้าง', situation: 'ห้องสมุดมีหนังสือใหม่ๆ แต่มีนักเรียนใช้น้อยมาก ผลสำรวจบอกว่า “ไม่มีเวลามา” แต่บันทึกการยืมกลับลดลงต่อเนื่อง', mission: 'หาความจริงให้ได้ว่าปัจจัยใดที่ทำให้นักเรียนไม่เข้าห้องสมุด', surveyData: 'ผลสำรวจ: "ไม่มีเวลา" (40%), "หนังสือไม่น่าสนใจ" (30%), "บรรยากาศไม่ดี" (20%)', clues: [ { name: 'บันทึกการยืม', finding: 'หนังสือที่ยังมีการยืมอยู่คือการ์ตูนความรู้และนิยายภาพ ส่วนหนังสือเรียนแทบไม่มีการยืม' }, { name: 'สภาพห้อง', finding: 'การจัดโต๊ะเป็นแถวเหมือนห้องเรียน ทำให้บรรยากาศดูเคร่งเครียด ไม่ผ่อนคลาย' }, { name: 'อุณหภูมิ', finding: 'เครื่องปรับอากาศมักจะถูกปิดในช่วงที่ไม่มีคาบเรียน ทำให้ตอนบ่ายอากาศร้อนอบอ้าว' }, { name: 'Wi-Fi', finding: 'สัญญาณ Wi-Fi ช้าและหลุดบ่อยมาก นักเรียนไม่สามารถใช้ทำงานหรือค้นคว้าได้' }, { name: 'สื่อใหม่', finding: 'มีหนังสือใหม่จริง แต่ส่วนใหญ่เป็นหนังสือบริจาคที่ไม่ตรงกับความสนใจของนักเรียน' } ], quiz: [ { q: 'หนังสือประเภทใดที่ยังคงมีการยืมอยู่บ้าง?', o: ['หนังสือเรียน', 'นิตยสาร', 'การ์ตูนความรู้'], a: 'การ์ตูนความรู้' }, { q: 'อะไรคือปัญหาหลักของบรรยากาศในห้องสมุด?', o: ['แสงน้อยไป', 'การจัดโต๊ะเหมือนห้องเรียน', 'เก้าอี้ไม่สบาย'], a: 'การจัดโต๊ะเหมือนห้องเรียน' }, { q: 'อุปสรรคสำคัญทางเทคโนโลยีคืออะไร?', o: ['ไม่มีคอมพิวเตอร์', 'Wi-Fi ช้าและหลุดบ่อย', 'ไม่มีปลั๊กไฟ'], a: 'Wi-Fi ช้าและหลุดบ่อย' }, { q: 'ข้อมูลใดที่ขัดแย้งกับคำกล่าวอ้างว่า "ไม่มีเวลา"?', o: ['นักเรียนเลิกเรียนเร็ว', 'บรรยากาศและสิ่งอำนวยความสะดวกไม่ดี', 'นักเรียนมีการบ้านเยอะ'], a: 'บรรยากาศและสิ่งอำนวยความสะดวกไม่ดี' }, { q: 'ปัญหาเกี่ยวกับ "สื่อใหม่" คืออะไร?', o: ['มีจำนวนน้อยเกินไป', 'ไม่ตรงกับความสนใจของนักเรียน', 'เป็นหนังสือเก่า'], a: 'ไม่ตรงกับความสนใจของนักเรียน' }, { q: 'หากต้องการดึงนักเรียนเข้าห้องสมุด ควรปรับปรุงอะไรก่อน?', o: ['ซื้อหนังสือเพิ่ม', 'ปรับปรุงบรรยากาศและ Wi-Fi', 'เปลี่ยนบรรณารักษ์'], a: 'ปรับปรุงบรรยากาศและ Wi-Fi' }, { q: 'ปัจจัยใดที่ส่งผลต่อ "อุณหภูมิ" ในห้องสมุด?', o: ['คนเยอะ', 'แดดส่อง', 'การเปิด-ปิดเครื่องปรับอากาศ'], a: 'การเปิด-ปิดเครื่องปรับอากาศ' } ] },
+            { id: 'assembly_ground', title: '🚶‍♀️ คดีจุดรวมพลลึกลับ', situation: 'ช่วงเช้าบริเวณหน้าเสาธงและทางเข้าโรงเรียนจะแออัดวุ่นวายมาก การเข้าแถวไม่เป็นระเบียบ และมีเสียงดังรบกวน', mission: 'สืบหาสาเหตุของความวุ่นวาย และเสนอแนวทางการจัดการพื้นที่ให้มีประสิทธิภาพ', surveyData: 'ผลสำรวจ: "คนเยอะเกินไป" (50%), "ทางเดินแคบ" (30%), "หาแถวตัวเองไม่เจอ" (20%)', clues: [ { name: 'ตารางเข้าแถว', finding: 'ทุกระดับชั้นถูกกำหนดให้มาถึงโรงเรียนในเวลาเดียวกัน (7:30 - 7:50)' }, { name: 'เส้นทางเดิน', finding: 'เส้นทางเดินของนักเรียนชั้นเล็กและชั้นโตทับซ้อนกัน ทำให้เกิดการตัดกระแส' }, { name: 'ลำโพง', finding: 'ตำแหน่งลำโพงอยู่ไกลจากแถวของนักเรียนชั้นเล็ก ทำให้ไม่ได้ยินคำสั่งชัดเจน' }, { name: 'จุดรับส่ง', finding: 'อยู่ใกล้ประตูทางเข้ามากเกินไป ทำให้ผู้ปกครองและนักเรียนกระจุกตัว' }, { name: 'ป้ายบอกแถว', finding: 'มีขนาดเล็กและไม่ชัดเจน ทำให้นักเรียนหาแถวของตัวเองได้ยาก' } ], quiz: [ { q: 'ปัญหาที่นักเรียนส่วนใหญ่แจ้งคืออะไร?', o: ['ทางเดินแคบ', 'หาแถวไม่เจอ', 'คนเยอะเกินไป'], a: 'คนเยอะเกินไป' }, { q: 'ปัญหา "ตารางเวลา" คืออะไร?', o: ['นักเรียนมาสาย', 'ทุกระดับชั้นมาถึงพร้อมกัน', 'ครูมาสาย'], a: 'ทุกระดับชั้นมาถึงพร้อมกัน' }, { q: 'ปัญหา "เส้นทางเดิน" คืออะไร?', o: ['พื้นชำรุด', 'เส้นทางทับซ้อนกัน', 'ไม่มีเส้นทางเดิน'], a: 'เส้นทางทับซ้อนกัน' }, { q: 'ทำไมนักเรียนชั้นเล็กจึงไม่เป็นระเบียบ?', o: ['นักเรียนซน', 'ไม่ได้ยินเสียงจากลำโพง', 'ครูไม่ดูแล'], a: 'ไม่ได้ยินเสียงจากลำโพง' }, { q: 'จุดรับส่งนักเรียน" ก่อให้เกิดปัญหาอย่างไร?', o: ['ไม่มีที่จอดรถ', 'ทำให้คนกระจุกตัวใกล้ทางเข้า', 'อยู่ไกลเกินไป'], a: 'ทำให้คนกระจุกตัวใกล้ทางเข้า' }, { q: 'สรุปแล้ว ปัญหาหลักเกิดจากอะไร?', o: ['นักเรียนไม่มีระเบียบ', 'การจัดการพื้นที่และเวลาไม่มีประสิทธิภาพ', 'โรงเรียนเล็กไป'], a: 'การจัดการพื้นที่และเวลาไม่มีประสิทธิภาพ' }, { q: 'หากต้องการลดความแออัด ควรทำอย่างไรเป็นอันดับแรก?', o: ['ขยายประตู', 'จัดเวลามาโรงเรียนให้เหลื่อมกัน', 'ทำโทษคนมาสาย'], a: 'จัดเวลามาโรงเรียนให้เหลื่อมกัน' } ] },
+            { id: 'park', title: '🌳 คดีสวนลับของโรงเรียน', situation: 'โรงเรียนมีพื้นที่สวนหย่อมพร้อมโต๊ะม้านั่ง แต่กลับไม่มีนักเรียนไปใช้งานเลย พื้นที่จึงถูกปล่อยทิ้งไว้ บางคนบอกว่า “ร้อน” บางคนบอกว่า “สกปรก”', mission: 'สืบว่าทำไมพื้นที่พักผ่อนนี้ถึงไม่เป็นที่นิยม และจะปรับปรุงอย่างไร', surveyData: 'ผลสำรวจ: "ร้อน/ไม่มีร่มเงา" (65%), "มีขยะ" (25%), "โต๊ะพัง" (10%)', clues: [ { name: 'สภาพโต๊ะม้านั่ง', finding: 'เป็นม้านั่งปูน ตั้งอยู่กลางแดดโดยตรง และบางตัวมีรอยแตก ไม่น่านั่ง' }, { name: 'ความสะอาด', finding: 'ไม่มีถังขยะในบริเวณนั้นเลย ทำให้มีเศษขยะตกค้างอยู่ตามพื้นและพุ่มไม้' }, { name: 'จำนวนต้นไม้', finding: 'มีต้นไม้ประดับ แต่ไม่มีต้นไม้ใหญ่ที่ให้ร่มเงาเพียงพอสำหรับนั่งพักผ่อน' }, { name: 'ป้าย', finding: 'มีแต่ป้าย "ห้ามทิ้งขยะ" แต่ไม่มีป้ายเชิญชวนหรือถังขยะรองรับ' }, { name: 'เสียงรบกวน', finding: 'พื้นที่อยู่ใกล้ถนน ทำให้มีเสียงรถดังรบกวนสมาธิในการพักผ่อน' } ], quiz: [ { q: 'ปัญหาอันดับหนึ่งจากผลสำรวจคืออะไร?', o: ['โต๊ะพัง', 'ร้อน/ไม่มีร่มเงา', 'มีขยะ'], a: 'ร้อน/ไม่มีร่มเงา' }, { q: 'ลักษณะของ "โต๊ะม้านั่ง" ที่เป็นปัญหาคืออะไร?', o: ['เป็นไม้และเก่า', 'เป็นปูนและตั้งอยู่กลางแดด', 'มีจำนวนน้อยไป'], a: 'เป็นปูนและตั้งอยู่กลางแดด' }, { q: 'สิ่งอำนวยความสะดวกใดที่ "ขาดหายไป" ซึ่งเป็นสาเหตุของปัญหาขยะ?', o: ['คนทำความสะอาด', 'ป้ายห้าม', 'ถังขยะ'], a: 'ถังขยะ' }, { q: 'สาเหตุหลักที่ทำให้บริเวณนั้นร้อนคืออะไร?', o: ['พื้นเป็นปูน', 'ไม่มีต้นไม้ใหญ่ให้ร่มเงา', 'อยู่ใกล้ตึก'], a: 'ไม่มีต้นไม้ใหญ่ให้ร่มเงา' }, { q: 'ป้ายที่มีอยู่ในสวนสื่อสารไปในทางใด?', o: ['เป็นเชิงเชิญชวน', 'เป็นเชิงให้ความรู้', 'เป็นเชิงห้ามปราม'], a: 'เป็นเชิงห้ามปราม' }, { q: 'สรุปแล้ว ปัญหาหลักของสวนคืออะไร?', o: ['นักเรียนไม่ชอบธรรมชาติ', 'ขาดการออกแบบที่ดีเพื่อการพักผ่อน', 'โรงเรียนไม่มีงบ'], a: 'ขาดการออกแบบที่ดีเพื่อการพักผ่อน' }, { q: 'หากต้องการให้นักเรียนมาใช้พื้นที่ ควรปรับปรุงอะไรก่อน?', o: ['ทาสีใหม่', 'เพิ่มร่มเงาและถังขยะ', 'เปลี่ยนโต๊ะ'], a: 'เพิ่มร่มเงาและถังขยะ' } ] }
+        ];
+
+        let currentCase = null, quizScore = 0, currentQuestionIndex = 0, investigatedCluesCount = 0;
+        let playerName = '', studentID = '';
+
+        const screens = { selection: document.getElementById('case-selection-screen'), investigation: document.getElementById('case-investigation-screen'), summaryQuiz: document.getElementById('summary-quiz-screen'), end: document.getElementById('end-screen') };
+        const playerNameInput = document.getElementById('playerName');
+        const studentIDInput = document.getElementById('studentID');
+        const caseList = document.getElementById('case-list');
+        const caseTitle = document.getElementById('case-title');
+        const caseSituation = document.getElementById('case-situation');
+        const caseMission = document.getElementById('case-mission');
+        const caseSurveyData = document.getElementById('case-survey-data');
+        const cluesContainer = document.getElementById('clues-container');
+        const startSummaryBtn = document.getElementById('start-summary-btn');
+        const quizSection = document.getElementById('quiz-section');
+        const reportSection = document.getElementById('report-section');
+        const questionCounter = document.getElementById('question-counter');
+        const questionText = document.getElementById('question-text');
+        const answerOptionsContainer = document.getElementById('answer-options');
+        const feedbackText = document.getElementById('feedback-text');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const factSummaryTextarea = document.getElementById('fact-summary');
+        const solutionProposalTextarea = document.getElementById('solution-proposal');
+        const closeCaseBtn = document.getElementById('close-case-btn');
+        const finalScore = document.getElementById('final-score');
+        const finalSummary = document.getElementById('final-summary');
+        const finalSolution = document.getElementById('final-solution');
+        const saveStatusText = document.getElementById('save-status-text');
+        const backToSelectionBtn = document.getElementById('back-to-selection');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        function showScreen(screenKey) {
+            Object.values(screens).forEach(screen => screen.classList.add('hidden'));
+            screens[screenKey].classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function validateInput() {
+            const name = playerNameInput.value.trim();
+            const id = studentIDInput.value.trim();
+            const isFormValid = name.length > 0 && /^\d{5}$/.test(id);
+            document.querySelectorAll('.case-card').forEach(card => {
+                if(isFormValid) {
+                    card.classList.remove('disabled');
+                } else {
+                    card.classList.add('disabled');
+                }
+            });
+        }
+
+        function createCaseCard(caseData) {
+            const card = document.createElement('div');
+            card.className = 'case-card p-6 rounded-lg cursor-pointer border-2 border-gray-700 disabled';
+            card.innerHTML = `<h3 class="text-xl font-bold text-blue-400">${caseData.title}</h3><p class="text-gray-400 mt-2 text-sm">${caseData.situation.substring(0, 100)}...</p>`;
+            card.addEventListener('click', () => {
+                if(!card.classList.contains('disabled')) {
+                    selectCase(caseData.id);
+                }
+            });
+            caseList.appendChild(card);
+        }
+
+        function populateCaseList() {
+            caseList.innerHTML = '';
+            cases.forEach(createCaseCard);
+        }
+
+        function selectCase(caseId) {
+            playerName = playerNameInput.value.trim();
+            studentID = studentIDInput.value.trim();
+            currentCase = cases.find(c => c.id === caseId);
+            investigatedCluesCount = 0;
+            caseTitle.textContent = currentCase.title;
+            caseSituation.textContent = currentCase.situation;
+            caseMission.textContent = currentCase.mission;
+            caseSurveyData.textContent = currentCase.surveyData;
+            startSummaryBtn.disabled = true;
+
+            cluesContainer.innerHTML = '';
+            currentCase.clues.forEach(clue => {
+                const clueWrapper = document.createElement('div');
+                clueWrapper.className = 'bg-gray-800 p-2 rounded-lg flex flex-col';
+                const button = document.createElement('button');
+                button.className = 'clue-button w-full text-center p-3 border-2 border-gray-700 rounded-md hover:bg-gray-600 hover:border-blue-500';
+                button.textContent = clue.name;
+                const finding = document.createElement('p');
+                finding.className = 'text-sm text-blue-300 mt-2 hidden text-center flex-grow';
+                finding.textContent = `💡 ${clue.finding}`;
+                button.addEventListener('click', () => {
+                    button.classList.add('investigated');
+                    finding.classList.remove('hidden');
+                    investigatedCluesCount++;
+                    if (investigatedCluesCount === currentCase.clues.length) {
+                        startSummaryBtn.disabled = false;
+                    }
+                }, { once: true });
+                clueWrapper.appendChild(button);
+                clueWrapper.appendChild(finding);
+                cluesContainer.appendChild(clueWrapper);
+            });
+            showScreen('investigation');
+        }
+
+        function startSummary() {
+            quizScore = 0;
+            currentQuestionIndex = 0;
+            quizSection.classList.remove('hidden');
+            reportSection.classList.add('hidden');
+            showScreen('summaryQuiz');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            feedbackText.textContent = '';
+            nextQuestionBtn.classList.add('hidden');
+            const question = currentCase.quiz[currentQuestionIndex];
+            questionCounter.textContent = `คำถามที่ ${currentQuestionIndex + 1} จาก ${currentCase.quiz.length}`;
+            questionText.textContent = question.q;
+            answerOptionsContainer.innerHTML = '';
+            question.o.forEach(optionText => {
+                const button = document.createElement('button');
+                button.className = 'answer-option block w-full text-left p-4 border-2 border-gray-600 rounded-md hover:bg-gray-700 hover:border-blue-500';
+                button.textContent = optionText;
+                button.addEventListener('click', () => selectAnswer(optionText, question.a));
+                answerOptionsContainer.appendChild(button);
+            });
+        }
+
+        function selectAnswer(selectedOption, correctAnswer) {
+            const buttons = answerOptionsContainer.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.disabled = true;
+                if (button.textContent === correctAnswer) button.classList.add('correct');
+                else if (button.textContent === selectedOption) button.classList.add('incorrect');
+            });
+            if (selectedOption === correctAnswer) {
+                quizScore++;
+                feedbackText.textContent = 'ถูกต้อง!';
+                feedbackText.className = 'mt-4 text-center font-semibold text-green-400';
+            } else {
+                feedbackText.textContent = `ไม่ถูกต้อง คำตอบที่ถูกคือ "${correctAnswer}"`;
+                feedbackText.className = 'mt-4 text-center font-semibold text-red-400';
+            }
+            nextQuestionBtn.classList.remove('hidden');
+        }
+
+        function handleNextStep() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < currentCase.quiz.length) {
+                loadQuestion();
+            } else {
+                quizSection.classList.add('hidden');
+                reportSection.classList.remove('hidden');
+            }
+        }
+        
+        function checkReportCompletion() {
+            const summary = factSummaryTextarea.value.trim();
+            const solution = solutionProposalTextarea.value.trim();
+            closeCaseBtn.disabled = !(summary && solution);
+        }
+        
+        function closeCase() {
+            const reportPoints = 3; // Points for completing the report
+            const totalScore = quizScore + reportPoints;
+            const maxScore = currentCase.quiz.length + reportPoints;
+            const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+            
+            finalScore.textContent = `${totalScore}/${maxScore} (${percentage}%)`;
+            finalSummary.textContent = factSummaryTextarea.value;
+            finalSolution.textContent = solutionProposalTextarea.value;
+            
+            sendScoreToGoogleSheet(totalScore, maxScore, percentage);
+            showScreen('end');
+        }
+
+        async function sendScoreToGoogleSheet(finalScore, maxScoreValue, percentageValue) {
+            const scriptURL = 'https://script.google.com/macros/s/AKfycbw1V6G2_d5mArh63IgJ3mQXOVnD1LF69FpdmuCYWAFweIkRcr-5G8Jb7f6V_ZTZuk9DRA/exec';
+            const data = {
+                gameName: "2.6 Fact Detective",
+                playerName: playerName,
+                studentID: studentID,
+                score: finalScore,
+                maxScore: maxScoreValue,
+                percentage: `${percentageValue}%`
+            };
+            saveStatusText.textContent = "กำลังบันทึกคะแนน...";
+            try {
+                await fetch(scriptURL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' }});
+                saveStatusText.textContent = "บันทึกคะแนนแล้ว ✅";
+            } catch (error) {
+                saveStatusText.textContent = "เกิดข้อผิดพลาดในการบันทึก ❌";
+            }
+        }
+        
+        function resetToStart() {
+            showScreen('selection');
+            playerNameInput.value = '';
+            studentIDInput.value = '';
+            validateInput();
+        }
+
+        playerNameInput.addEventListener('input', validateInput);
+        studentIDInput.addEventListener('input', validateInput);
+        backToSelectionBtn.addEventListener('click', resetToStart);
+        startSummaryBtn.addEventListener('click', startSummary);
+        nextQuestionBtn.addEventListener('click', handleNextStep);
+        factSummaryTextarea.addEventListener('input', checkReportCompletion);
+        solutionProposalTextarea.addEventListener('input', checkReportCompletion);
+        closeCaseBtn.addEventListener('click', closeCase);
+        playAgainBtn.addEventListener('click', resetToStart);
+
+        populateCaseList();
+        validateInput();
+    </script>
+</body>
+</html>
+
